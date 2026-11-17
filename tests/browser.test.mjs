@@ -51,13 +51,21 @@ test('phone layout, no autoplay, actual AudioWorklet on/off, and installation he
     assert.equal(await p.evaluate('document.getElementById("power").getAttribute("aria-pressed")'),'false');
   } finally {await p.close();}
 });
-test('pagehide stops audio and a shortened test deadline exercises automatic stop', {timeout:20000}, async () => {
-  const p=await page('const realTimeout=window.setTimeout;window.setTimeout=(fn,delay,...args)=>realTimeout(fn,delay===30000?150:delay,...args);');
+test('playback stays on without an automatic deadline', {timeout:20000}, async () => {
+  // Accelerate long application timers so the former 30-second stop fails
+  // this regression without waiting 30 seconds in the suite.
+  const p=await page('const realTimeout=window.setTimeout;window.setTimeout=(fn,delay,...args)=>realTimeout(fn,delay>=10000?150:delay,...args);');
   try {
     await p.evaluate('document.getElementById("power").click()');
     await waitFor(p,'document.getElementById("power").getAttribute("aria-pressed")==="true"');
-    await waitFor(p,'audioContexts[0].state==="suspended"');
-    assert.equal(await p.evaluate('document.getElementById("power").getAttribute("aria-pressed")'),'false');
+    await p.evaluate('new Promise(ok=>setTimeout(ok,250))');
+    assert.equal(await p.evaluate('document.getElementById("power").getAttribute("aria-pressed")'),'true');
+    assert.equal(await p.evaluate('audioContexts[0].state'),'running');
+  } finally {await p.close();}
+});
+test('pagehide stops continuous playback', {timeout:20000}, async () => {
+  const p=await page();
+  try {
     await p.evaluate('document.getElementById("power").click()');
     await waitFor(p,'document.getElementById("power").getAttribute("aria-pressed")==="true"');
     await p.evaluate('window.dispatchEvent(new Event("pagehide"))');

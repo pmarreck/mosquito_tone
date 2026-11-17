@@ -9,8 +9,8 @@ The private deployment URL is supplied separately after publication; the
 repository does not contain access tokens or hosting credentials.
 
 The default is 17.4 kHz at a low digital signal level. Frequency is adjustable
-from 14 to 19 kHz. Playback stops after 30 seconds, when the page is hidden,
-or when the audio context is interrupted. It never starts automatically.
+from 14 to 19 kHz. Playback continues until you tap Stop, the page is hidden,
+or the audio context is interrupted. There is no time limit and it never starts automatically.
 Output runs locally and can work offline once the app has cached its assets.
 
 ## Install on iPhone
@@ -49,8 +49,8 @@ browser evidence.
 
 Tests exercise the actual WASM against independent sine samples and frequency
 energy calculations at 44.1 and 48 kHz; buffer continuity, fade-to-silence and
-invalid parameters; bounded settings and injected-time deadlines; PWA assets;
-and real browser AudioWorklet start/stop, timeout, lifecycle handling, errors
+invalid parameters; bounded settings; PWA assets;
+and real browser AudioWorklet start/stop, continuous playback, lifecycle handling, errors
 and offline reload. Browser tests mute output so tests do not emit tones into
 the room. They use temporary profiles and a loopback-only server.
 

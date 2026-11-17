@@ -1,18 +1,18 @@
-import { DEFAULT_HZ, DEFAULT_GAIN, LIMIT_MS, settings, remainingMs } from './model.mjs';
+import { DEFAULT_HZ, DEFAULT_GAIN, settings } from './model.mjs';
 const $ = id => document.getElementById(id);
-let context, node, gainNode, wasm, initializing, active = false, generation = 0, stopTimer, ticker, suspendTimer;
-let hz = DEFAULT_HZ, gain = DEFAULT_GAIN, startedAt = 0;
+let context, node, gainNode, wasm, initializing, active = false, generation = 0, suspendTimer;
+let hz = DEFAULT_HZ, gain = DEFAULT_GAIN;
 function paint(message) {
   $('power').setAttribute('aria-pressed', String(active));
   $('power').setAttribute('aria-label', active ? 'Stop tone' : 'Start tone');
   $('power-label').textContent = active ? 'STOP' : 'START';
   $('status').textContent = message || (active ? 'Tone is playing' : 'Sound is off');
-  $('timer').textContent = active ? `${Math.ceil(remainingMs(startedAt, performance.now()) / 1000)} seconds remaining` : 'Tap to start · stops after 30 seconds';
+  $('timer').textContent = active ? 'Playing continuously · tap to stop' : 'Tap to start · no time limit';
 }
 function fail(error) { stop(); document.body.dataset.state = 'error'; paint(error.message || String(error)); }
 function stop(immediate = false) {
   generation++; active = false;
-  clearTimeout(stopTimer); clearTimeout(suspendTimer); clearInterval(ticker);
+  clearTimeout(suspendTimer);
   node?.port.postMessage({ enabled: false });
   if (gainNode && context) {
     const now = context.currentTime;
@@ -60,9 +60,7 @@ $('power').addEventListener('click', async () => {
     settings(hz, gain, context.sampleRate);
     node.port.postMessage({ hz, enabled: true });
     gainNode.gain.setValueAtTime(gain, context.currentTime);
-    active = true; startedAt = performance.now(); document.body.dataset.state = 'playing'; paint();
-    stopTimer = setTimeout(stop, LIMIT_MS);
-    ticker = setInterval(() => { if (remainingMs(startedAt, performance.now()) === 0) stop(); else paint(); }, 200);
+    active = true; document.body.dataset.state = 'playing'; paint();
   } catch (error) { fail(error); }
   finally { $('power').dataset.starting = 'false'; }
 });

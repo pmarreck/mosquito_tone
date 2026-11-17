@@ -5,10 +5,13 @@ experience is an iPhone Home Screen button opening a simple on/off app, with
 actual tone synthesis performed by WebAssembly. A thin Web Audio adapter
 delivers its samples to the browser's audio output.
 
-Default: 17.4 kHz sine, low digital signal level, 30-second maximum playback.
+Default: 17.4 kHz sine, low digital signal level, continuous playback until stopped.
 Frequency and level controls are reversible implementation choices. No audio
 starts without an explicit tap; leaving the page stops playback. Digital level
 does not establish acoustic sound pressure or safety at a given phone volume.
+
+The owner explicitly removed the initially proposed 30-second limit on
+2026-11-17. There is no playback deadline while the app remains open.
 
 The app makes no child-only audibility, clinical hearing-test or calibrated
 loudness claims. Hearing and speaker frequency response vary. It has no stealth
