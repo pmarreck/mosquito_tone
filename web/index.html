@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#111518"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Mosquito">
+<meta name="description" content="A small, offline high-frequency tone generator. Tap to play; tap to stop.">
+<link rel="manifest" href="./manifest.webmanifest"><link rel="apple-touch-icon" href="./icon-180.png"><link rel="icon" href="./icon-192.png"><link rel="stylesheet" href="./style.css">
+<title>Mosquito Tone</title></head>
+<body><main>
+<header><a class="brand" href="./" aria-label="Mosquito Tone home"><svg viewBox="0 0 32 24" aria-hidden="true"><path d="M1 12C5-3 9 27 13 12S21-3 25 12s4 4 6 0"/></svg>MOSQUITO</a><button class="install" id="install" type="button">Install <span aria-hidden="true">↗</span></button></header>
+<div class="intro"><span class="tag">WASM AUDIO · ON YOUR DEVICE</span><h1>A little higher.</h1><p>A high-frequency sine tone.<br>Your ears, and your speaker, set the limit.</p></div>
+<section class="player" aria-label="Tone playback">
+<button id="power" type="button" aria-pressed="false" aria-label="Start tone" disabled><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 10v24M19 17a22 22 0 1 0 26 0"/></svg><span id="power-label">LOADING</span></button>
+<p class="status" id="status" role="status" aria-live="polite">Preparing the audio engine…</p><p class="timer" id="timer">Tap to start · stops after 30 seconds</p>
+</section>
+<section class="controls" aria-label="Tone settings">
+<div class="control"><div class="label"><label for="frequency">FREQUENCY</label><output id="frequency-value" for="frequency">17.4 <small>kHz</small></output></div><input id="frequency" type="range" min="14000" max="19000" step="100" value="17400" aria-describedby="frequency-note"><div class="scale"><span>14 kHz</span><span>19 kHz</span></div></div>
+<div class="control"><div class="label"><label for="level">SIGNAL LEVEL</label><output id="level-value" for="level">Low</output></div><input id="level" type="range" min="1" max="50" step="1" value="10"><div class="scale"><span>Quieter</span><span>Stronger</span></div></div>
+</section>
+<p class="note" id="frequency-note">Start with your phone volume low. A tone you cannot hear can still be loud to someone else. Audibility varies; this is not a hearing test.</p>
+<footer><span id="offline">Checking offline availability</span><span>No autoplay. No background audio.</span></footer>
+<dialog id="install-dialog"><button id="close-install" aria-label="Close installation help">×</button><span class="tag">TAKE IT WITH YOU</span><h2>One tap from home.</h2><p>On iPhone, open this page in <strong>Safari</strong>. Tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>. Keep <strong>Open as Web App</strong> enabled if offered, then tap <strong>Add</strong>.</p><p>Open it once while online so its audio engine can be saved for offline use.</p><p class="note">Playback always needs a tap. Switching apps or locking the screen stops the tone.</p></dialog>
+</main><script type="module" src="./app.mjs"></script></body></html>

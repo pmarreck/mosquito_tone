@@ -1,0 +1,9 @@
+AGENTS.md
+dist/
+dist-out
+test-out
+.zig-cache/
+zig-out/
+.dirtree-state
+inbox/
+.release-stage.*/

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Credentialed publication only: Sites requires a regular tree inside checkout.
+# Normal build/test/run consumers use Nix outputs in place.
+set -u
+cd -- "$(dirname -- "$0")" || exit 1
+if [ ! -f dist-out/index.html ]; then printf 'Run ./build first.\n' >&2; exit 1; fi
+staging=$(mktemp -d .release-stage.XXXXXX) || exit 1
+if ! ALLOW_NIX_STORE_COPY='Release delivery staging for static Site publication; regular files are required by the hosting packager' cp -R --dereference -- dist-out/. "$staging/"; then
+  printf 'Release staging failed; retained %s for inspection.\n' "$staging" >&2
+  exit 1
+fi
+if [ -e dist ]; then
+  backup=$(mktemp -d "${TMPDIR:-/tmp}/mosquito-previous-release.XXXXXX") || exit 1
+  mv -- dist "$backup/dist" || exit 1
+fi
+mv -- "$staging" dist
