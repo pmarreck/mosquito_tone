@@ -1,4 +1,5 @@
 AGENTS.md
+.openai/hosting.json
 dist/
 dist-out
 test-out

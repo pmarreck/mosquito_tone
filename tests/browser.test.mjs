@@ -1,7 +1,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { serve } from '../scripts/serve.mjs';
@@ -9,9 +9,14 @@ let server, child, ws, profile, origin, nextId=0;
 const pending=new Map();
 function send(method,params={},sessionId) { return new Promise((resolve,reject) => { const id=++nextId; const timer=setTimeout(() => { pending.delete(id); reject(new Error(`CDP timeout: ${method}`)); },10000); pending.set(id,{resolve,reject,timer}); ws.send(JSON.stringify({id,method,params,sessionId})); }); }
 before(async () => {
-  server=await serve(process.env.TONE_SITE); origin=`http://127.0.0.1:${server.address().port}`;
   profile=await mkdtemp(join(tmpdir(),'mosquito-browser-'));
-  child=spawn(process.env.TONE_CHROMIUM,['--headless=new','--no-sandbox','--disable-gpu','--mute-audio','--no-first-run','--no-default-browser-check','--remote-debugging-port=0',`--user-data-dir=${profile}`,'about:blank'],{stdio:['ignore','ignore','pipe']});
+  const siteRoot = join(profile, 'site');
+  await mkdir(siteRoot);
+  // Match the path prefix of a GitHub Pages project site.
+  await symlink(process.env.TONE_SITE, join(siteRoot, 'mosquito_tone'), 'dir');
+  server = await serve(siteRoot);
+  origin = `http://127.0.0.1:${server.address().port}/mosquito_tone`;
+  child=spawn(process.env.TONE_CHROMIUM,['--headless=new','--no-sandbox','--disable-gpu','--mute-audio','--no-first-run','--no-default-browser-check','--remote-debugging-port=0',`--user-data-dir=${join(profile, 'browser')}`,'about:blank'],{stdio:['ignore','ignore','pipe']});
   const endpoint=await new Promise((ok,fail) => { let log=''; const timeout=setTimeout(() => fail(new Error('Chromium startup timed out')),10000); child.on('error',fail); child.on('exit',code => fail(new Error(`Chromium exited ${code}: ${log}`))); child.stderr.on('data',d => { log+=d; const match=/DevTools listening on (ws:\S+)/.exec(log); if(match) {clearTimeout(timeout); ok(match[1]);} }); });
   ws=new WebSocket(endpoint);
   ws.addEventListener('message',({data}) => { const message=JSON.parse(data); const waiter=pending.get(message.id); if(waiter) {clearTimeout(waiter.timer); pending.delete(message.id); message.error ? waiter.reject(new Error(message.error.message)) : waiter.resolve(message.result);} });
