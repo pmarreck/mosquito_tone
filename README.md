@@ -23,6 +23,12 @@ Open the app online once before relying on offline use. A private hosting
 provider may require signing in to access the site initially. The app itself
 does not upload audio, collect analytics or require its own account.
 
+If Safari reports that a service-worker response has redirections after an
+update, close and reopen the app online so the corrected worker can activate.
+If an older worker remains stuck, remove only this site's entry under Safari's
+Advanced > Website Data settings, then reopen it online. This resets its
+offline cache and may require signing in again.
+
 Start with the phone's physical volume low. The signal slider controls digital
 amplitude, not calibrated acoustic loudness. Not hearing a tone does not mean
 it is quiet to someone else. High-frequency hearing varies, some adults can
@@ -68,8 +74,13 @@ development and testing continue to consume immutable Nix outputs in place.
 `src/tone.zig` owns oscillator phase, the 20 ms amplitude ramp, validation and
 a fixed sample buffer. `web/tone-worklet.mjs` instantiates that WASM and copies
 its samples into the audio output. `web/app.mjs` owns explicit user activation,
-gain, UI, cancellation and lifecycle. Settings/time calculations are pure
-functions in `web/model.mjs`. The offline cache is versioned by asset content.
+gain, UI, cancellation and lifecycle. Settings validation is pure in
+`web/model.mjs`. The offline cache is versioned by asset and worker content.
+Cached app navigations reconstruct a response without fetch redirect metadata,
+which Safari rejects for navigation. Host authentication routes bypass the
+offline app handler. A regression test checks this response contract; Chromium
+tests additionally verify real offline reloads. This does not substitute for
+native Safari qualification.
 
 No previous checkout or relevant conversation was located in the initial local
 and Mac project/document searches or available chat-history search. This is a

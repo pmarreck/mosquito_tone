@@ -21,5 +21,7 @@ function icon(size) {
 for (const size of [180, 192, 512]) await writeFile(`${out}/icon-${size}.png`, icon(size));
 const hash = createHash('sha256');
 for (const name of (await readdir(out)).sort()) { hash.update(name); hash.update(await readFile(`${out}/${name}`)); }
-const sw = (await readFile('web/sw.js', 'utf8')).replace('__VERSION__', hash.digest('hex').slice(0, 20));
+const template = await readFile('web/sw.js', 'utf8');
+hash.update(template);
+const sw = template.replace('__VERSION__', hash.digest('hex').slice(0, 20));
 await writeFile(`${out}/sw.js`, sw);
