@@ -1,0 +1,2 @@
+# Complete WASM, model, package and real-browser acceptance suite.
+checks.x86_64-linux.test
