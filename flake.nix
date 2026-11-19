@@ -26,10 +26,19 @@
         '';
         installPhase = ''mkdir -p "$out"; cp -R dist/. "$out/"'';
       };
+      fixtureSources = builtins.fromJSON (builtins.readFile ./tests/fixtures.json);
+      fixtures = pkgs.runCommand "mosquito-tone-reference-pcm" {
+        nativeBuildInputs = [ pkgs.ffmpeg-headless ];
+      } (''
+        mkdir -p "$out"
+      '' + pkgs.lib.concatStringsSep "\n" (pkgs.lib.mapAttrsToList (name: source: ''
+        ffmpeg -v error -i ${pkgs.fetchurl source} -f f32le -ac 1 -ar 44100 "$out/${name}.f32"
+      '') fixtureSources));
       tests = pkgs.runCommand "mosquito-tone-tests" {
         inherit src;
         nativeBuildInputs = [ pkgs.nodejs ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [ pkgs.chromium ];
         TONE_SITE = "${site}";
+        TONE_FIXTURES = "${fixtures}";
         TONE_CHROMIUM = if pkgs.stdenv.isLinux then "${pkgs.chromium}/bin/chromium" else "";
         FONTCONFIG_FILE = pkgs.makeFontsConf { fontDirectories = [ pkgs.dejavu_fonts ]; };
       } ''

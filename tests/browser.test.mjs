@@ -1,11 +1,12 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, symlink, writeFile, copyFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { serve } from '../scripts/serve.mjs';
+import { assertTone } from './audio-analysis.mjs';
 let server, child, ws, profile, origin, nextId=0;
 const pending=new Map();
 const documentListeners = new Map();
@@ -16,6 +17,7 @@ before(async () => {
   await mkdir(siteRoot);
   // Match the path prefix of a GitHub Pages project site.
   await symlink(process.env.TONE_SITE, join(siteRoot, 'mosquito_tone'), 'dir');
+  await copyFile(new URL('./capture-worklet.mjs', import.meta.url), join(siteRoot, 'capture-worklet.mjs'));
   server = await serve(siteRoot);
   origin = `http://127.0.0.1:${server.address().port}/mosquito_tone`;
   child=spawn(process.env.TONE_CHROMIUM,['--headless=new','--no-sandbox','--disable-gpu','--mute-audio','--no-first-run','--no-default-browser-check','--remote-debugging-port=0',`--user-data-dir=${join(profile, 'browser')}`,'about:blank'],{stdio:['ignore','ignore','pipe']});
@@ -61,7 +63,14 @@ async function page(preload='') {
     await call('Runtime.enable');
     await call('Page.setLifecycleEventsEnabled', {enabled: true});
     await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:3,mobile:true});
-    await call('Page.addScriptToEvaluateOnNewDocument',{source:`window.audioContexts=[]; const RealAudio=window.AudioContext; window.AudioContext=class extends RealAudio { constructor(...args){super(...args);window.audioContexts.push(this);} }; ${preload}`});
+    await call('Page.addScriptToEvaluateOnNewDocument',{source:`
+      window.audioContexts=[];window.audioGains=[];window.audioOutputs=new Set();
+      const connect=AudioNode.prototype.connect,disconnect=AudioNode.prototype.disconnect;
+      AudioNode.prototype.connect=function(...args){const result=connect.apply(this,args);if(args[0]===this.context.destination)audioOutputs.add(this);return result;};
+      AudioNode.prototype.disconnect=function(...args){const result=disconnect.apply(this,args);if(!args.length||args[0]===this.context.destination)audioOutputs.delete(this);return result;};
+      const RealAudio=window.AudioContext;
+      window.AudioContext=class extends RealAudio { constructor(...args){super(...args);window.audioContexts.push(this);} createGain(){const gain=super.createGain();window.audioGains.push(gain);return gain;} };
+      ${preload}`});
     const evaluate = async expression => {
       const result = await call('Runtime.evaluate', {expression, awaitPromise: true, returnByValue: true, userGesture: true});
       if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text);
@@ -140,5 +149,80 @@ test('unavailable Web Audio produces an explicit error without starting playback
     await waitFor(p,'document.body.dataset.state==="error"');
     assert.equal(await p.evaluate('document.getElementById("power").getAttribute("aria-pressed")'),'false');
     assert.match(await p.evaluate('document.getElementById("status").textContent'),/Web Audio/);
+  } finally {await p.close();}
+});
+async function capture(p) {
+  return p.evaluate(`(async()=>{
+    const ctx=audioContexts[0], gain=audioGains[0];
+    if(!audioOutputs.has(gain))throw new Error('App gain node is not connected to the audio destination');
+    if(!window.captureLoaded){await ctx.audioWorklet.addModule('/capture-worklet.mjs');window.captureLoaded=true;}
+    const tap=new AudioWorkletNode(ctx,'capture');
+    return new Promise((ok,fail)=>{
+      const cleanup=()=>{gain.disconnect(tap);tap.disconnect();};
+      const timer=setTimeout(()=>{cleanup();fail(new Error('PCM capture timed out'));},5000);
+      tap.port.onmessage=({data})=>{clearTimeout(timer);cleanup();ok({rate:data.rate,pcm:Array.from(data.pcm)});};
+      gain.connect(tap);tap.connect(ctx.destination);
+    });
+  })()`);
+}
+test('real browser post-gain PCM meets fixture frequency, amplitude and warble contracts', {timeout:30000}, async t => {
+  const p=await page();
+  try {
+    await p.evaluate('document.getElementById("power").click()');
+    await waitFor(p,'document.getElementById("power").getAttribute("aria-pressed")==="true"');
+    for (const {hz,dbFS,warble} of [
+      {hz:17400,dbFS:-40,warble:false},
+      {hz:500,dbFS:-20,warble:false},
+      {hz:17400,dbFS:-3,warble:false},
+      {hz:17400,dbFS:-3,warble:true},
+      {hz:500,dbFS:-3,warble:true},
+      {hz:19000,dbFS:-3,warble:true},
+    ]) {
+      await p.evaluate(`{
+        const hz=document.getElementById('frequency'),db=document.getElementById('level'),box=document.getElementById('warble');
+        hz.value=${hz};hz.dispatchEvent(new Event('input'));db.value=${dbFS};db.dispatchEvent(new Event('input'));
+        if(box.checked!==${warble})box.click();
+      }`);
+      const {rate,pcm}=await capture(p);
+      t.diagnostic(JSON.stringify({selectedHz:hz,...assertTone(pcm,rate,{hz,dbFS,warble})}));
+    }
+    await p.evaluate('document.getElementById("power").click()');
+    await waitFor(p,'audioContexts[0].state==="suspended"');
+    // Resume only the test context, leaving the app stopped, to record silence.
+    await p.evaluate('audioContexts[0].resume()');
+    const {pcm}=await capture(p);
+    assert.ok(pcm.every(x=>x===0),'Stopped app must output exact silence');
+    await p.evaluate('audioGains[0].disconnect(audioContexts[0].destination)');
+    await assert.rejects(capture(p), /not connected to the audio destination/);
+  } finally {await p.close();}
+});
+test('17.4 kHz snaps within two pixels, keyboard can escape, and text cannot be selected', {timeout:20000}, async () => {
+  const p=await page();
+  try {
+    const values=await p.evaluate(`(()=>{
+      const slider=document.getElementById('frequency'), values=[];
+      slider.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));
+      for(const hz of [17300,17500,17100,17700]){slider.value=hz;slider.dispatchEvent(new Event('input'));values.push(Number(slider.value));}
+      window.dispatchEvent(new PointerEvent('pointerup'));
+      slider.value=17500;slider.dispatchEvent(new Event('input'));values.push(Number(slider.value));
+      return values;
+    })()`);
+    assert.deepEqual(values,[17400,17400,17100,17700,17500]);
+    await p.evaluate('document.getElementById("frequency").value=17400;document.getElementById("frequency").focus()');
+    await p.call('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowRight',code:'ArrowRight',windowsVirtualKeyCode:39});
+    await p.call('Input.dispatchKeyEvent',{type:'keyUp',key:'ArrowRight',code:'ArrowRight',windowsVirtualKeyCode:39});
+    assert.equal(await p.evaluate('document.getElementById("frequency").value'),'17500');
+    for (const id of ['status','power-label','frequency-value','warble-range','level-value']) {
+      assert.equal(await p.evaluate(`getComputedStyle(document.getElementById('${id}')).userSelect`),'none');
+    }
+  } finally {await p.close();}
+});
+test('installed mode requests portrait and gracefully handles rejected orientation lock', {timeout:20000}, async () => {
+  const p=await page(`Object.defineProperty(navigator,'standalone',{value:true});window.locks=[];screen.orientation.lock=mode=>{locks.push(mode);return Promise.reject(new Error('Not supported'));};`);
+  try {
+    assert.deepEqual(await p.evaluate('locks'),['portrait-primary']);
+    await p.evaluate('document.getElementById("power").click()');
+    await waitFor(p,'document.getElementById("power").getAttribute("aria-pressed")==="true"');
+    assert.equal(await p.evaluate('locks.length'),2);
   } finally {await p.close();}
 });

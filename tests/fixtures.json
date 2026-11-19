@@ -1,0 +1,10 @@
+{
+  "steady": {
+    "url": "https://www.audiocheck.net/Audio/audiocheck.net_mosquito17400Hz.ogg",
+    "sha256": "f994898e7e044178bc11c6952384e60f4c06e1323d998603f3affa74d2316947"
+  },
+  "warble": {
+    "url": "https://www.audiocheck.net/Audio/audiocheck.net_mosquitoModulated.ogg",
+    "sha256": "f2af542f517cb6da1ccb483a462413077725a083097e1a414c04242b38f3fe78"
+  }
+}

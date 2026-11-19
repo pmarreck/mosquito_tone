@@ -7,8 +7,13 @@ or a JavaScript oscillator standing in for WASM.
 
 **[Open Mosquito Tone](https://pmarreck.github.io/mosquito_tone/)** in your browser.
 
-The default is 17.4 kHz at a low digital signal level. Frequency is adjustable
-from 14 to 19 kHz. Playback continues until you tap Stop, the page is hidden,
+The default is 17.4 kHz at −40 dBFS. Frequency is adjustable
+from 500 Hz to 19 kHz, with a two-pixel snap to 17.4 kHz while dragging.
+Use 500 Hz to confirm audible speaker output. The Warble checkbox sweeps
+from 400 Hz below the selected frequency to 2600 Hz above it, three times per
+second, starting at the selected frequency and rising. Signal level spans
+−60 to −3 dBFS; −3 matches the AudioCheck reference level.
+Playback continues until you tap Stop, the page is hidden,
 or the audio context is interrupted. There is no time limit and it never starts automatically.
 Output runs locally and can work offline once the app has cached its assets.
 
@@ -20,6 +25,11 @@ steps; a website cannot open Apple's installation sheet itself.
 
 Open the app online once before relying on offline use. The app plays audio
 locally and requires no account.
+
+Text selection and long-press text callouts are disabled. The installed app
+requests portrait orientation through its manifest and the orientation-lock API.
+iPhone Safari does not currently support that locking API; use the phone's
+Portrait Orientation Lock if it still rotates. This requires a real-device check.
 
 If Safari reports that a service-worker response has redirections after an
 update, close and reopen the app online so the corrected worker can activate.
@@ -51,12 +61,35 @@ headless Chromium; other builders run the core/model/package checks. Real
 Safari and iPhone Home Screen qualification remains separate from desktop
 browser evidence.
 
-Tests exercise the actual WASM against independent sine samples and frequency
-energy calculations at 44.1 and 48 kHz; buffer continuity, fade-to-silence and
-invalid parameters; bounded settings; PWA assets;
-and real browser AudioWorklet start/stop, continuous playback, lifecycle handling, errors
-and offline reload. Browser tests mute output so tests do not emit tones into
+Tests exercise the actual WASM against independent sine samples and the same
+FFT/RMS waveform analyzer used on the two AudioCheck reference files, at 44.1
+and 48 kHz, from 500 Hz to 19 kHz. Checks measure frequency, sine amplitude in
+dBFS, DC offset, clipping and steady-tone spectral purity; short-time FFTs measure
+warble endpoints and cadence. Negative controls reject silence, wrong frequency,
+wrong amplitude, distortion, incorrect sweep span and incorrect cadence.
+The browser suite captures PCM after the actual WASM AudioWorklet and gain node,
+checking the default, audible low tone, reference level, warble and stopped silence.
+Buffer continuity, fade-to-silence, invalid parameters, bounded settings, PWA assets,
+start/stop, continuous playback, lifecycle handling, errors and offline reload are
+also required. Browser tests mute output so tests do not emit tones into
 the room. They use temporary profiles and a loopback-only server.
+
+The reference files are the public Ogg playback assets linked by
+[AudioCheck's Mosquito Tone Audibility Test](https://www.audiocheck.net/audiotests_mosquito.php),
+by Stéphane Pigeon. Its steady reference is specified as 17.4 kHz at −3 dBFS;
+the modulated reference spans 17–20 kHz at 3 Hz. Nix fetches the original files
+using the SHA-256 pins in `tests/fixtures.json` and decodes them to PCM with
+pinned FFmpeg. The originals and decoded audio are test inputs only, excluded
+from the website and release. AudioCheck labels its material for personal use;
+the repository does not redistribute those recordings. The analyzer allows
+0.3 dB for compressed reference amplitude, 3 Hz for steady frequency, and
+80 Hz / 0.03 Hz for sweep endpoints / cadence. Sine amplitude uses
+`20*log10(RMS*sqrt(2))`; full-scale sine RMS is `1/sqrt(2)`.
+
+PCM capture establishes correct browser output samples. It cannot establish
+phone speaker response, output routing, system volume or acoustic sound pressure.
+For that final check, select 500 Hz, start quietly and verify the sound at the
+intended speaker, then stop before returning to high frequencies.
 
 `nix log .#checks.x86_64-linux.test` shows the detailed Linux test receipt.
 Tests are fast after dependencies are available; fetching a browser is setup

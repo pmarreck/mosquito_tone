@@ -1,7 +1,18 @@
-import { DEFAULT_HZ, DEFAULT_GAIN, settings } from './model.mjs';
+import { DEFAULT_HZ, DEFAULT_GAIN, settings, dbToGain, snapFrequency } from './model.mjs';
 const $ = id => document.getElementById(id);
 let context, node, gainNode, wasm, initializing, active = false, generation = 0, suspendTimer;
-let hz = DEFAULT_HZ, gain = DEFAULT_GAIN;
+let hz = DEFAULT_HZ, gain = DEFAULT_GAIN, warble = false, draggingFrequency = false;
+function paintFrequency() {
+  $('frequency-value').innerHTML = `${(hz / 1000).toFixed(1)} <small>kHz</small>`;
+  $('frequency').setAttribute('aria-valuetext', `${hz} Hz`);
+  $('warble-range').textContent = warble ? `${((hz - 400) / 1000).toFixed(1)}–${((hz + 2600) / 1000).toFixed(1)} kHz · 3 sweeps/sec` : 'Selected frequency −0.4 to +2.6 kHz · 3 sweeps/sec';
+}
+function requestPortrait() {
+  if (navigator.standalone || matchMedia('(display-mode: standalone)').matches) {
+    try { screen.orientation?.lock?.('portrait-primary').catch(() => {}); } catch {}
+  }
+}
+requestPortrait();
 function paint(message) {
   $('power').setAttribute('aria-pressed', String(active));
   $('power').setAttribute('aria-label', active ? 'Stop tone' : 'Start tone');
@@ -44,32 +55,43 @@ async function prepare() {
         if (data.error) { clearTimeout(timeout); reject(new Error(data.error)); fail(new Error(data.error)); }
       };
       node.addEventListener('processorerror', () => fail(new Error('The audio processor stopped unexpectedly.')));
-      node.port.postMessage({ wasm });
+      node.port.postMessage({ wasm, hz, warble });
     });
     node.connect(gainNode);
   })();
   await Promise.all([resume, initializing]);
 }
 $('power').addEventListener('click', async () => {
+  requestPortrait();
   if (active || $('power').dataset.starting === 'true') { stop(); $('power').dataset.starting = 'false'; return; }
   const request = ++generation;
   clearTimeout(suspendTimer); $('power').dataset.starting = 'true'; $('status').textContent = 'Starting…';
   try {
     await prepare();
     if (request !== generation || document.hidden) return;
-    settings(hz, gain, context.sampleRate);
-    node.port.postMessage({ hz, enabled: true });
+    settings(hz, gain, context.sampleRate, warble);
+    node.port.postMessage({ hz, warble, enabled: true });
     gainNode.gain.setValueAtTime(gain, context.currentTime);
     active = true; document.body.dataset.state = 'playing'; paint();
   } catch (error) { fail(error); }
   finally { $('power').dataset.starting = 'false'; }
 });
+$('frequency').addEventListener('pointerdown', () => { draggingFrequency = true; });
+for (const event of ['pointerup', 'pointercancel']) window.addEventListener(event, () => { draggingFrequency = false; });
 $('frequency').addEventListener('input', event => {
-  try { const value = Number(event.target.value); settings(value, gain, context?.sampleRate || 48000); hz = value; $('frequency-value').innerHTML = `${(hz / 1000).toFixed(1)} <small>kHz</small>`; node?.port.postMessage({ hz }); }
+  try {
+    const raw = Number(event.target.value), value = draggingFrequency ? snapFrequency(raw, event.target.getBoundingClientRect().width) : raw;
+    settings(value, gain, context?.sampleRate || 48000, warble); hz = value; event.target.value = hz;
+    paintFrequency(); node?.port.postMessage({ hz });
+  }
   catch (error) { fail(error); }
 });
+$('warble').addEventListener('change', event => {
+  try { const value = event.target.checked; settings(hz, gain, context?.sampleRate || 48000, value); warble = value; paintFrequency(); node?.port.postMessage({ warble }); }
+  catch (error) { event.target.checked = warble; fail(error); }
+});
 $('level').addEventListener('input', event => {
-  try { const value = Number(event.target.value) / 1000; settings(hz, value, context?.sampleRate || 48000); gain = value; $('level-value').textContent = gain <= .01 ? 'Low' : gain <= .025 ? 'Medium' : 'Stronger'; if (active) gainNode.gain.setTargetAtTime(gain, context.currentTime, .02); }
+  try { const db = Number(event.target.value), value = dbToGain(db); settings(hz, value, context?.sampleRate || 48000, warble); gain = value; $('level-value').textContent = `${db} dBFS`; if (active) gainNode.gain.setTargetAtTime(gain, context.currentTime, .02); }
   catch (error) { fail(error); }
 });
 document.addEventListener('visibilitychange', () => { if (document.hidden) { stop(true); $('power').dataset.starting = 'false'; } });

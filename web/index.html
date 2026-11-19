@@ -13,8 +13,9 @@
 <p class="status" id="status" role="status" aria-live="polite">Preparing the audio engine…</p><p class="timer" id="timer">Tap to start · no time limit</p>
 </section>
 <section class="controls" aria-label="Tone settings">
-<div class="control"><div class="label"><label for="frequency">FREQUENCY</label><output id="frequency-value" for="frequency">17.4 <small>kHz</small></output></div><input id="frequency" type="range" min="14000" max="19000" step="100" value="17400" aria-describedby="frequency-note"><div class="scale"><span>14 kHz</span><span>19 kHz</span></div></div>
-<div class="control"><div class="label"><label for="level">SIGNAL LEVEL</label><output id="level-value" for="level">Low</output></div><input id="level" type="range" min="1" max="50" step="1" value="10"><div class="scale"><span>Quieter</span><span>Stronger</span></div></div>
+<div class="control"><div class="label"><label for="frequency">FREQUENCY</label><output id="frequency-value" for="frequency">17.4 <small>kHz</small></output></div><input id="frequency" type="range" min="500" max="19000" step="100" value="17400" aria-valuetext="17400 Hz" aria-describedby="speaker-note frequency-note"><div class="scale"><span>500 Hz</span><span>17.4 kHz snap</span><span>19 kHz</span></div><p class="control-note" id="speaker-note">Use 500 Hz to check that your speaker plays sound.</p></div>
+<div class="control"><label class="checkbox"><input id="warble" type="checkbox" aria-describedby="warble-range">Warble</label><p class="control-note" id="warble-range">Selected frequency −0.4 to +2.6 kHz · 3 sweeps/sec</p></div>
+<div class="control"><div class="label"><label for="level">SIGNAL LEVEL</label><output id="level-value" for="level">−40 dBFS</output></div><input id="level" type="range" min="-60" max="-3" step="1" value="-40" aria-describedby="level-note"><div class="scale"><span>−60 dBFS</span><span>−3 dBFS</span></div><p class="control-note" id="level-note">−3 dBFS matches the AudioCheck reference signal level.</p></div>
 </section>
 <p class="note" id="frequency-note">Start with your phone volume low. A tone you cannot hear can still be loud to someone else. Audibility varies; this is not a hearing test.</p>
 <footer><span id="offline">Checking offline availability</span><span>No autoplay. No background audio.</span></footer>
