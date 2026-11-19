@@ -9,4 +9,5 @@
 - [x] Build and independently test the WASM oscillator and browser audio adapter; actual sample, frequency-energy, buffer-continuity and invalid-input checks pass (done 2026-11-17 14:57 EST).
 - [x] Verify on/off, timeout, pagehide-stop and offline app behavior through the complete test entry point; 14 checks pass, with muted Chromium browser tests (done 2026-11-17 14:57 EST).
 - [x] Deploy the private HTTPS app and provide iPhone Home Screen installation instructions; hosting reports successful publication of the verified source and static artifact (done 2026-11-17 15:02 EST).
-- [ ] Qualify actual iPhone speaker output at 500 Hz, Safari, Home Screen operation and orientation with the owner; blocked on physical-device access and observation.
+- [x] Confirm practical playback after deployment; the owner reports the app works, without specifying device, frequency or installation mode (done 2026-11-18 22:59 EST; deployed commit 90e8a3e).
+- [ ] Qualify iPhone-specific 500 Hz speaker output, Safari, Home Screen operation and orientation; general app success is confirmed, but these details require device-specific observation.
