@@ -10,4 +10,5 @@
 - [x] Verify on/off, timeout, pagehide-stop and offline app behavior through the complete test entry point; 14 checks pass, with muted Chromium browser tests (done 2026-11-17 14:57 EST).
 - [x] Deploy the private HTTPS app and provide iPhone Home Screen installation instructions; hosting reports successful publication of the verified source and static artifact (done 2026-11-17 15:02 EST).
 - [x] Confirm practical playback after deployment; the owner reports the app works, without specifying device, frequency or installation mode (done 2026-11-18 22:59 EST; deployed commit 90e8a3e).
-- [ ] Qualify iPhone-specific 500 Hz speaker output, Safari, Home Screen operation and orientation; general app success is confirmed, but these details require device-specific observation.
+- [x] Check iPhone rotation; Answer: the owner confirms the view still rotates despite the portrait request and accepts the browser limitation; use system Portrait Orientation Lock (done 2026-11-18 23:00 EST; deployed commit 90e8a3e).
+- [ ] Record specific iPhone 500 Hz speaker, Safari and Home Screen checks; awaiting observations beyond general working playback and the confirmed rotation limitation.
